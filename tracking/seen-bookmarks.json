@@ -1,14 +1,16 @@
 {
-  "proposed": [
+  "proposed": [],
+  "skipped": [
     {
       "id": "2092649548627783818",
       "title": "Ultralytics YOLO26",
       "url": "https://x.com/ultralytics/status/2092649548627783818",
       "date": "2026-09-03",
       "slug": "yolo26-detect",
-      "tech": "Ultralytics YOLO26"
+      "tech": "Ultralytics YOLO26",
+      "skipped_reason": "Fa already runs YOLO26 live on Jetson",
+      "skipped_date": "2026-09-03"
     }
   ],
-  "skipped": [],
   "built": []
 }
