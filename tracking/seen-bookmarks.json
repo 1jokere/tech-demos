@@ -1,14 +1,5 @@
 {
-  "proposed": [
-    {
-      "id": "2094883369188499937",
-      "title": "tinkabot (Grok Bot plugin maker)",
-      "url": "https://x.com/poteto/status/2094883369188499937",
-      "date": "2026-09-04",
-      "slug": "tinkabot-plugin-lab",
-      "tech": "tinkabot"
-    }
-  ],
+  "proposed": [],
   "skipped": [
     {
       "id": "2092649548627783818",
@@ -19,6 +10,16 @@
       "tech": "Ultralytics YOLO26",
       "skipped_reason": "Fa already runs YOLO26 live on Jetson",
       "skipped_date": "2026-09-03"
+    },
+    {
+      "id": "2094883369188499937",
+      "title": "tinkabot (Grok Bot plugin maker)",
+      "url": "https://x.com/poteto/status/2094883369188499937",
+      "date": "2026-09-04",
+      "slug": "tinkabot-plugin-lab",
+      "tech": "tinkabot",
+      "skipped_reason": "Fa skipped in chat",
+      "skipped_date": "2026-09-04"
     }
   ],
   "built": []
