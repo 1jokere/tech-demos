@@ -1,5 +1,14 @@
 {
-  "proposed": [],
+  "proposed": [
+    {
+      "id": "2095983699728953836",
+      "title": "GPT-6 Astra (AGENTS.md / skills audit)",
+      "url": "https://x.com/bradleybernard/status/2095983699728953836",
+      "date": "2026-09-07",
+      "slug": "astra-agents-audit",
+      "tech": "GPT-6 Astra"
+    }
+  ],
   "skipped": [
     {
       "id": "2092649548627783818",
