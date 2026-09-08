@@ -1,5 +1,15 @@
 {
-  "proposed": [],
+  "proposed": [
+    {
+      "id": "2095153247367651534",
+      "title": "botdirectory.ai (Bot Directory API)",
+      "url": "https://x.com/sairahul1/status/2095153247367651534",
+      "date": "2026-09-08",
+      "slug": "botdirectory-explorer",
+      "tech": "botdirectory.ai",
+      "proposed_date": "2026-09-08"
+    }
+  ],
   "skipped": [
     {
       "id": "2092649548627783818",
