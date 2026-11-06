@@ -8,6 +8,16 @@
       "slug": "botdirectory-explorer",
       "tech": "botdirectory.ai",
       "proposed_date": "2026-09-08"
+    },
+    {
+      "id": "2118057889432514691",
+      "title": "diffTLM — Reconstructing the Vocal Tract (differentiable acoustic simulation)",
+      "url": "https://x.com/vincesitzmann/status/2118057889432514691",
+      "date": "2026-11-04",
+      "slug": "difftlm-vocal-playground",
+      "tech": "diffTLM (vocal tract differentiable simulator)",
+      "proposed_date": "2026-11-06",
+      "project_page": "https://echen01.github.io/vocal-tract/"
     }
   ],
   "skipped": [
@@ -40,6 +50,26 @@
       "tech": "GPT-6 Astra",
       "skipped_reason": "Fa skipped in chat",
       "skipped_date": "2026-09-07"
+    },
+    {
+      "id": "2118216477623067099",
+      "title": "Omarchy 4.5 (agentic Linux desktop OS)",
+      "url": "https://x.com/omarchy/status/2118216477623067099",
+      "date": "2026-11-05",
+      "slug": "omarchy-desktop",
+      "tech": "Omarchy 4.5",
+      "skipped_reason": "Full OS install (Mac/ARM desktop), not a self-contained bun web MVP under apps/",
+      "skipped_date": "2026-11-06"
+    },
+    {
+      "id": "2118079056851669202",
+      "title": "ghosthand (real iPhone for agents)",
+      "url": "https://x.com/__morse/status/2118079056851669202",
+      "date": "2026-11-04",
+      "slug": "ghosthand-iphone",
+      "tech": "ghosthand",
+      "skipped_reason": "Requires Mac + physical iPhone over USB/Bluetooth; not a self-contained bun web MVP",
+      "skipped_date": "2026-11-06"
     }
   ],
   "built": []
