@@ -70,6 +70,16 @@
       "tech": "ghosthand",
       "skipped_reason": "Requires Mac + physical iPhone over USB/Bluetooth; not a self-contained bun web MVP",
       "skipped_date": "2026-11-06"
+    },
+    {
+      "id": "2119125760997011908",
+      "title": "Migel Tissera LLM fine-tuning recipe (skills repo)",
+      "url": "https://x.com/migtissera/status/2119125760997011908",
+      "date": "2026-11-07",
+      "slug": "llm-finetune-recipe",
+      "tech": "LLM fine-tuning recipe / skills repo",
+      "skipped_reason": "GPU training workflow, not a self-contained bun web MVP; auto-skipped by scout",
+      "skipped_date": "2026-11-10"
     }
   ],
   "built": []
