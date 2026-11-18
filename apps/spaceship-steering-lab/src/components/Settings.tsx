@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import { type LLMConfig } from '../services/llm';
+import { type Language, LOCALES } from '../services/locale';
 import { Settings as SettingsIcon, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
 interface SettingsProps {
   config: LLMConfig;
   onChangeConfig: (config: LLMConfig) => void;
+  language: Language;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
   config,
-  onChangeConfig
+  onChangeConfig,
+  language
 }) => {
   const [showKey, setShowKey] = useState(false);
+  const t = LOCALES[language];
 
   const handleProviderChange = (provider: LLMConfig['provider']) => {
     let defaultModel = '';
@@ -21,7 +25,7 @@ export const Settings: React.FC<SettingsProps> = ({
       defaultModel = 'gpt-4o-mini';
       defaultUrl = 'https://api.openai.com/v1';
     } else if (provider === 'groq') {
-      defaultModel = 'llama-3.3-70b-specdec';
+      defaultModel = 'openai/gpt-oss-20b';
       defaultUrl = 'https://api.groq.com/openai/v1';
     } else if (provider === 'cerebras') {
       defaultModel = 'llama3.1-8b';
@@ -44,15 +48,15 @@ export const Settings: React.FC<SettingsProps> = ({
       <div className="panel-head">
         <div className="title-row">
           <SettingsIcon className="panel-icon text-cyan" size={18} />
-          <h2>API Engine Settings</h2>
+          <h2>{t.apiSettings}</h2>
         </div>
-        <p>Choose between local Demo Mode (no key needed) or direct streaming to cloud providers.</p>
+        <p>{t.apiSettingsSub}</p>
       </div>
 
       <div className="settings-form">
         {/* Provider Select */}
         <div className="form-group">
-          <label className="form-label">Provider</label>
+          <label className="form-label">{t.provider}</label>
           <div className="provider-tabs">
             <button
               type="button"
@@ -65,7 +69,6 @@ export const Settings: React.FC<SettingsProps> = ({
               type="button"
               className={`provider-tab ${config.provider === 'cerebras' ? 'is-active' : ''}`}
               onClick={() => handleProviderChange('cerebras')}
-              title="Fastest open-weights model"
             >
               Cerebras
             </button>
@@ -73,7 +76,6 @@ export const Settings: React.FC<SettingsProps> = ({
               type="button"
               className={`provider-tab ${config.provider === 'groq' ? 'is-active' : ''}`}
               onClick={() => handleProviderChange('groq')}
-              title="Ultra-low latency inference"
             >
               Groq
             </button>
@@ -99,10 +101,10 @@ export const Settings: React.FC<SettingsProps> = ({
             {/* API Key */}
             <div className="form-group">
               <div className="label-row">
-                <label className="form-label">API Key</label>
+                <label className="form-label">{t.apiKey}</label>
                 <span className="secure-badge">
                   <ShieldCheck size={10} />
-                  <span>localStorage only</span>
+                  <span>{t.localStorageOnly}</span>
                 </span>
               </div>
               <div className="input-wrapper">
@@ -110,7 +112,7 @@ export const Settings: React.FC<SettingsProps> = ({
                   type={showKey ? 'text' : 'password'}
                   value={config.apiKey}
                   onChange={(e) => onChangeConfig({ ...config, apiKey: e.target.value })}
-                  placeholder={`Enter your ${config.provider.toUpperCase()} API Key`}
+                  placeholder={language === 'fr' ? `Entrez votre clé d'API ${config.provider.toUpperCase()}` : `Enter your ${config.provider.toUpperCase()} API Key`}
                   className="form-input font-mono"
                 />
                 <button
@@ -125,7 +127,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
             {/* Model Name */}
             <div className="form-group">
-              <label className="form-label">Model</label>
+              <label className="form-label">{t.model}</label>
               <input
                 type="text"
                 value={config.model || ''}
@@ -137,12 +139,12 @@ export const Settings: React.FC<SettingsProps> = ({
 
             {/* Custom Endpoint URL */}
             <div className="form-group">
-              <label className="form-label">Custom Base URL (Optional)</label>
+              <label className="form-label">{t.customBaseUrl}</label>
               <input
                 type="text"
                 value={config.baseUrl || ''}
                 onChange={(e) => onChangeConfig({ ...config, baseUrl: e.target.value })}
-                placeholder="Custom endpoint URL"
+                placeholder="Custom base URL"
                 className="form-input font-mono"
               />
             </div>
@@ -152,7 +154,7 @@ export const Settings: React.FC<SettingsProps> = ({
         {config.provider === 'demo' && (
           <div className="demo-info-card animate-fade-in">
             <span className="demo-badge">Active</span>
-            <p>Runs fully in-browser with highly responsive, procedural canned starlit sci-fi logs. Move knobs or lock highlights to see the procedural story react instantly!</p>
+            <p>{t.demoActive}</p>
           </div>
         )}
       </div>
