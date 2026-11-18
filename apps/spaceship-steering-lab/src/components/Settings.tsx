@@ -21,7 +21,7 @@ export const Settings: React.FC<SettingsProps> = ({
       defaultModel = 'gpt-4o-mini';
       defaultUrl = 'https://api.openai.com/v1';
     } else if (provider === 'groq') {
-      defaultModel = 'llama-3.3-70b-versatile';
+      defaultModel = 'openai/gpt-oss-20b';
       defaultUrl = 'https://api.groq.com/openai/v1';
     } else if (provider === 'cerebras') {
       defaultModel = 'llama3.1-8b';

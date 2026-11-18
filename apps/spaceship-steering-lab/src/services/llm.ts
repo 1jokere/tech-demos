@@ -214,7 +214,7 @@ export async function streamLLMGeneration(
     model = model || 'gpt-4o-mini';
   } else if (config.provider === 'groq') {
     baseUrl = baseUrl || 'https://api.groq.com/openai/v1';
-    model = model || 'llama-3.3-70b-versatile';
+    model = model || 'openai/gpt-oss-20b';
   } else if (config.provider === 'cerebras') {
     baseUrl = baseUrl || 'https://api.cerebras.ai/v1';
     model = model || 'llama3.1-8b';
@@ -265,7 +265,9 @@ Do not write more than one sentence. Do not include markdown formatting like bol
         { role: 'user', content: userPrompt }
       ],
       stream: true,
-      temperature: 0.85
+      temperature: 0.85,
+      max_tokens: 120,
+      max_completion_tokens: 120
     }),
     signal
   });
@@ -288,7 +290,7 @@ Do not write more than one sentence. Do not include markdown formatting like bol
       detailText.toLowerCase().includes('decommissioned') ||
       detailText.toLowerCase().includes('model_not_found')
     )) {
-      throw new Error(`Model Error (400): The model "${model}" is decommissioned, deprecated, or not supported by ${config.provider.toUpperCase()}. Please check or change the model name in Settings (e.g. use "llama-3.3-70b-versatile" for Groq). Details: ${detailText}`);
+      throw new Error(`Model Error (400): The model "${model}" is decommissioned, deprecated, or not supported by ${config.provider.toUpperCase()}. Please check or change the model name in Settings (e.g. use "openai/gpt-oss-20b" for Groq). Details: ${detailText}`);
     }
     
     if (response.status === 401) {
@@ -350,8 +352,23 @@ Do not write more than one sentence. Do not include markdown formatting like bol
             sentenceText = '';
           }
 
+          // Strip reasoning blocks (<thought>...</thought> or <reasoning>...</reasoning>) from final outputs
+          const cleanReasoning = (t: string) => {
+            return t
+              .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+              .replace(/<thought>[\s\S]*$/gi, '')
+              .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+              .replace(/<reasoning>[\s\S]*$/gi, '')
+              .replace(/<\/thought>/gi, '')
+              .replace(/<\/reasoning>/gi, '')
+              .trim();
+          };
+
+          const activeText = cleanReasoning(sentenceText || fullStreamText);
+          const activeFocus = focusPhrase ? cleanReasoning(focusPhrase) : undefined;
+
           // Trigger chunk callback
-          onChunk(sentenceText || fullStreamText, focusPhrase || undefined);
+          onChunk(activeText, activeFocus || undefined);
         } catch (e) {
           // Ignore parse errors on partial lines
         }
