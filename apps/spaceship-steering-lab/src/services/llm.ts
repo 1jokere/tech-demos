@@ -214,7 +214,7 @@ export async function streamLLMGeneration(
     model = model || 'gpt-4o-mini';
   } else if (config.provider === 'groq') {
     baseUrl = baseUrl || 'https://api.groq.com/openai/v1';
-    model = model || 'llama-3.3-70b-specdec';
+    model = model || 'llama-3.3-70b-versatile';
   } else if (config.provider === 'cerebras') {
     baseUrl = baseUrl || 'https://api.cerebras.ai/v1';
     model = model || 'llama3.1-8b';
@@ -272,7 +272,38 @@ Do not write more than one sentence. Do not include markdown formatting like bol
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`API error (${response.status}): ${errorText}`);
+    let parsedMessage = '';
+    try {
+      const parsedJson = JSON.parse(errorText);
+      parsedMessage = parsedJson.error?.message || parsedJson.message || '';
+    } catch (_) {}
+
+    const detailText = parsedMessage || errorText;
+    
+    if (response.status === 400 && (
+      detailText.toLowerCase().includes('model_decommissioned') || 
+      detailText.toLowerCase().includes('not found') || 
+      detailText.toLowerCase().includes('unknown model') || 
+      detailText.toLowerCase().includes('deprecated') || 
+      detailText.toLowerCase().includes('decommissioned') ||
+      detailText.toLowerCase().includes('model_not_found')
+    )) {
+      throw new Error(`Model Error (400): The model "${model}" is decommissioned, deprecated, or not supported by ${config.provider.toUpperCase()}. Please check or change the model name in Settings (e.g. use "llama-3.3-70b-versatile" for Groq). Details: ${detailText}`);
+    }
+    
+    if (response.status === 401) {
+      throw new Error(`Authentication Error (401): The API Key provided is invalid or has expired for ${config.provider.toUpperCase()}. Please check your key in the settings panel.`);
+    }
+
+    if (response.status === 404) {
+      throw new Error(`Endpoint Error (404): The model "${model}" or endpoint was not found. Please double-check your Custom Base URL and model ID. Details: ${detailText}`);
+    }
+
+    if (response.status === 429) {
+      throw new Error(`Rate Limit (429): You have exceeded the rate limit for ${config.provider.toUpperCase()}. Please wait a moment before trying again.`);
+    }
+
+    throw new Error(`API Error (${response.status}): ${detailText}`);
   }
 
   const reader = response.body?.getReader();
