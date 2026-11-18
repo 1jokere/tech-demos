@@ -207,7 +207,7 @@ export async function streamLLMGeneration(
   // Real LLM call
   let apiKey = config.apiKey;
   let baseUrl = config.baseUrl;
-  let model = config.model;
+  let model = config.model || '';
 
   if (config.provider === 'openai') {
     baseUrl = baseUrl || 'https://api.openai.com/v1';
@@ -252,23 +252,30 @@ Do not write more than one sentence. Do not include markdown formatting like bol
 
   const userPrompt = `Here is the story so far:\n${storyText}\n\nWrite the next sentence following the steer values.`;
 
+  const requestBody: Record<string, any> = {
+    model: model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ],
+    stream: true,
+    temperature: 0.85,
+    max_tokens: 400,
+    max_completion_tokens: 400
+  };
+
+  if (config.provider === 'groq' && model.includes('gpt-oss')) {
+    requestBody.reasoning_effort = 'low';
+    requestBody.include_reasoning = false;
+  }
+
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      stream: true,
-      temperature: 0.85,
-      max_tokens: 120,
-      max_completion_tokens: 120
-    }),
+    body: JSON.stringify(requestBody),
     signal
   });
 
@@ -364,8 +371,25 @@ Do not write more than one sentence. Do not include markdown formatting like bol
               .trim();
           };
 
-          const activeText = cleanReasoning(sentenceText || fullStreamText);
+          let activeText = cleanReasoning(sentenceText || fullStreamText);
           const activeFocus = focusPhrase ? cleanReasoning(focusPhrase) : undefined;
+
+          // Detect sentence boundaries client-side to terminate stream early once exactly one sentence is generated.
+          // This avoids the model running on and writing multiple sentences when token limit is raised.
+          if (sentenceIndex !== -1 && activeText.length > 5) {
+            const boundaryMatch = activeText.match(/([.!?])\s+/);
+            if (boundaryMatch && boundaryMatch.index !== undefined) {
+              const truncateIndex = boundaryMatch.index + 1; // Include the punctuation mark
+              activeText = activeText.slice(0, truncateIndex).trim();
+              sentenceText = activeText; // Sync sentenceText for final return
+
+              onChunk(activeText, activeFocus || undefined);
+
+              // Cancel the stream reader gracefully and return completed sentence
+              await reader.cancel();
+              return { text: activeText, focusPhrase: activeFocus };
+            }
+          }
 
           // Trigger chunk callback
           onChunk(activeText, activeFocus || undefined);
