@@ -18,6 +18,16 @@
       "tech": "diffTLM (vocal tract differentiable simulator)",
       "proposed_date": "2026-11-06",
       "project_page": "https://echen01.github.io/vocal-tract/"
+    },
+    {
+      "id": "2122579675738231170",
+      "title": "Spaceship IDE (realtime LLM vector steering)",
+      "url": "https://x.com/RileyRalmuto/status/2122579675738231170",
+      "date": "2026-11-17",
+      "slug": "spaceship-steering-lab",
+      "tech": "Spaceship IDE (chuanqisun/spaceship)",
+      "proposed_date": "2026-11-18",
+      "project_page": "https://github.com/chuanqisun/spaceship"
     }
   ],
   "skipped": [
