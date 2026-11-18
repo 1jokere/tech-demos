@@ -124,6 +124,109 @@ const GENERIC_TEMPLATES_FR = {
   light_calm_far: "Les étoiles brillaient avec une clarté absolue, projetant une lumière iridescente et apaisante sur le champ infini de l'espace.",
 };
 
+/**
+ * Sanitizes the generated text to clean thoughts, strip any leaked formatting wrappers or labels,
+ * and double-check near-duplicate content similarity.
+ */
+export function sanitizeSentence(
+  text: string,
+  previousSentenceText?: string
+): { cleanText: string; isDuplicate: boolean } {
+  // 1. Clean thought and reasoning blocks
+  let cleanText = text
+    .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+    .replace(/<thought>[\s\S]*$/gi, '')
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+    .replace(/<reasoning>[\s\S]*$/gi, '')
+    .replace(/<\/thought>/gi, '')
+    .replace(/<\/reasoning>/gi, '')
+    .trim();
+
+  // 2. Strip leaked Focus and Sentence labels cleanly (and optional quotes)
+  const focusSentenceRegex = /^focus:\s*["']?[\s\S]*?["']?\s*sentence:\s*/i;
+  if (focusSentenceRegex.test(cleanText)) {
+    cleanText = cleanText.replace(focusSentenceRegex, '');
+  }
+
+  // Strip standard "Focus:" or "Focus :" prefixes
+  const leadingFocusRegex = /^focus\s*:\s*/i;
+  if (leadingFocusRegex.test(cleanText)) {
+    cleanText = cleanText.replace(leadingFocusRegex, '');
+  }
+
+  // Strip standard "Sentence:" prefixes
+  const leadingSentenceRegex = /^sentence\s*:\s*/i;
+  if (leadingSentenceRegex.test(cleanText)) {
+    cleanText = cleanText.replace(leadingSentenceRegex, '');
+  }
+
+  // Trim enclosing quotes
+  cleanText = cleanText.replace(/^["']|["']$/g, '').trim();
+
+  // 3. Near-duplicate check with the previous sentence
+  let isDuplicate = false;
+  if (previousSentenceText) {
+    const normalize = (t: string) => {
+      return t
+        .toLowerCase()
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "") // strip punctuation
+        .replace(/\s+/g, "") // strip whitespace
+        .trim();
+    };
+
+    const normClean = normalize(cleanText);
+    const normPrev = normalize(previousSentenceText);
+
+    // If exact match after normalization, or if one completely contains the other
+    if (normClean === normPrev || normClean.includes(normPrev) || normPrev.includes(normClean)) {
+      isDuplicate = true;
+    } else {
+      // Word overlap comparison to detect slightly tweaked copies
+      const wordsClean = cleanText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").split(/\s+/).filter(Boolean);
+      const wordsPrev = previousSentenceText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").split(/\s+/).filter(Boolean);
+      
+      if (wordsClean.length > 0 && wordsPrev.length > 0) {
+        const setClean = new Set(wordsClean);
+        const overlap = wordsPrev.filter(w => setClean.has(w)).length;
+        const ratio = overlap / Math.max(wordsClean.length, wordsPrev.length);
+        
+        // If overlap ratio > 0.65 (65% identical words), flag as duplicate
+        if (ratio > 0.65) {
+          isDuplicate = true;
+        }
+      }
+    }
+  }
+
+  return { cleanText, isDuplicate };
+}
+
+/**
+ * Extracts a focus phrase from the previous story text or attention locks safely client-side.
+ */
+export function extractFocusPhrase(
+  storyText: string,
+  locks: string[],
+  language: 'fr' | 'en' = 'fr'
+): string {
+  if (locks.length > 0) {
+    return locks[Math.floor(Math.random() * locks.length)];
+  }
+
+  const sentences = storyText.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  if (sentences.length > 0) {
+    const lastSentence = sentences[sentences.length - 1];
+    const words = lastSentence.split(/\s+/).filter(Boolean);
+    if (words.length > 4) {
+      const startIdx = Math.floor(Math.random() * (words.length - 3));
+      return words.slice(startIdx, startIdx + 3).join(' ').replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+    }
+    return lastSentence.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+  }
+
+  return language === 'fr' ? "vaisseau dérive" : "lone vessel";
+}
+
 export function getCannedSentence(
   stageIndex: number,
   knobs: Knobs,
@@ -193,7 +296,7 @@ export function getCannedSentence(
           : ` Guided by the resonance of the ${lock}, I felt secure.`;
       } else {
         weavedText += language === 'fr'
-          ? ` Pendant ce temps, la présence fantomatique de : ${lock} continuait de planer.`
+          ? ` Pendant ce temps, la présence fantomatique de : ${lock} continuait de poser question.`
           : ` Meanwhile, the ghostly presence of the ${lock} continued to loom.`;
       }
     }
@@ -232,14 +335,30 @@ export async function streamLLMGeneration(
   signal: AbortSignal,
   language: 'fr' | 'en' = 'fr'
 ): Promise<{ text: string; focusPhrase?: string }> {
+  // Pre-calculate focus phrase client-side to prevent any leaked labels from LLM formatting
+  const focusPhrase = extractFocusPhrase(storyText, locks, language);
+  
+  // Extract last sentence text for duplicate checks
+  const storySentences = storyText.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  const lastSentenceText = storySentences[storySentences.length - 1] || '';
+
   if (config.provider === 'demo') {
-    const sentencesCount = Math.max(0, storyText.split(/[.!?]+/).filter(x => x.trim().length > 0).length - 1);
-    const sentences = storyText.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
-    const premise = sentences[0] || (language === 'fr' ? "Un vaisseau dérive." : "A lone vessel drifts.");
-    const existing = sentences.slice(1);
+    const sentencesCount = Math.max(0, storySentences.length - 1);
+    const premise = storySentences[0] || (language === 'fr' ? "Un vaisseau dérive." : "A lone vessel drifts.");
+    const existing = storySentences.slice(1);
 
     const canned = getCannedSentence(sentencesCount, knobs, locks, premise, existing, language);
     
+    // Check duplicates even on demo mode just in case
+    const cannedSanitized = sanitizeSentence(canned.text, lastSentenceText);
+    if (cannedSanitized.isDuplicate) {
+      throw new Error(
+        language === 'fr'
+          ? "La phrase générée est trop similaire à la précédente (détection de doublon)."
+          : "The generated sentence is a duplicate or too similar to the previous one."
+      );
+    }
+
     const words = canned.text.split(' ');
     let currentText = '';
     
@@ -248,7 +367,6 @@ export async function streamLLMGeneration(
         throw new DOMException('Aborted', 'AbortError');
       }
       currentText += (i === 0 ? '' : ' ') + words[i];
-      const focusPhrase = i >= words.length / 2 ? canned.focusPhrase : undefined;
       onChunk(currentText, focusPhrase);
       
       await new Promise((resolve, reject) => {
@@ -314,6 +432,7 @@ export async function streamLLMGeneration(
         : `IMPORTANT CONSTRAINTS: You must weave in or build directly upon these exact phrase(s): ${locks.map(l => `"${l}"`).join(', ')}. Keep them central to the sentence.`)
     : '';
 
+  // Focus phrase format instruction completely removed here so the model NEVER echoes "Focus:" prefixes!
   const systemPrompt = language === 'fr'
     ? `Vous êtes un générateur de récits de science-fiction rapide et collaboratif en temps réel.
 Votre tâche consiste à générer exactement UNE seule phrase de continuation percutante pour l'histoire fournie par l'utilisateur.
@@ -325,15 +444,10 @@ Vous devez orienter le style, le ton et le rythme de cette phrase en fonction de
 
 ${attentionLockPrompt}
 
-Votre réponse doit être strictement formatée ainsi :
-Focus: "expression de l'histoire précédente qui a inspiré cette phrase"
-Sentence: Phrase de continuation unique ici.
-
-N'écrivez pas plus d'une phrase. Ne mettez pas de mise en forme markdown comme des caractères gras en dehors du format spécifié. Soyez extrêmement créatif et correspondez précisément aux valeurs de style demandées.`
+Écrivez UNIQUEMENT la phrase suivante de l'histoire. Ne commencez pas par des labels comme "Focus:" ou "Sentence:". Ne mettez pas de mise en forme markdown. Soyez extrêmement créatif et correspondez précisément aux valeurs de style demandées.`
     : `You are a fast, collaborative real-time sci-fi story generator.
 Your job is to generate exactly ONE single, punchy continuation sentence for the story provided by the user.
 You must generate the sentence in English. All prose must be beautifully written in English.
-Your job is to generate exactly ONE single, punchy continuation sentence for the story provided by the user.
 You MUST steer the style, tone, and pacing of this sentence based on these round knob steering values:
 - Tone (Dark to Light): ${knobs.tone.toFixed(2)} (Use style: ${toneText})
 - Tension (Calm to Intense): ${knobs.tension.toFixed(2)} (Use style: ${tensionText})
@@ -341,11 +455,7 @@ You MUST steer the style, tone, and pacing of this sentence based on these round
 
 ${attentionLockPrompt}
 
-Your response must strictly be formatted as:
-Focus: "phrase from earlier story that inspired this sentence"
-Sentence: Next single continuation sentence here.
-
-Do not write more than one sentence. Do not include markdown formatting like bolding outside the specified format. Be extremely creative and match the requested style values precisely.`;
+Write ONLY the next continuation sentence of the story. Do not prefix your output with labels like "Focus:" or "Sentence:". Do not include markdown formatting. Be extremely creative and match the requested style values precisely.`;
 
   const userPrompt = language === 'fr'
     ? `Voici l'histoire jusqu'à présent :\n${storyText}\n\nÉcrivez la phrase suivante en suivant les consignes des cadrans.`
@@ -451,8 +561,6 @@ Do not write more than one sentence. Do not include markdown formatting like bol
 
   const decoder = new TextDecoder('utf-8');
   let fullStreamText = '';
-  let sentenceText = '';
-  let focusPhrase = '';
 
   try {
     while (true) {
@@ -472,51 +580,39 @@ Do not write more than one sentence. Do not include markdown formatting like bol
           const deltaContent = parsed.choices?.[0]?.delta?.content || '';
           fullStreamText += deltaContent;
 
-          const focusMatch = fullStreamText.match(/Focus:\s*["']?([^"\n'\r]+)["']?/i);
-          const sentenceIndex = fullStreamText.toLowerCase().indexOf('sentence:');
-
-          if (focusMatch) {
-            focusPhrase = focusMatch[1].trim();
-          }
-
-          if (sentenceIndex !== -1) {
-            sentenceText = fullStreamText.slice(sentenceIndex + 9).trim();
-          } else {
-            sentenceText = '';
-          }
-
-          const cleanReasoning = (t: string) => {
-            return t
-              .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
-              .replace(/<thought>[\s\S]*$/gi, '')
-              .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
-              .replace(/<reasoning>[\s\S]*$/gi, '')
-              .replace(/<\/thought>/gi, '')
-              .replace(/<\/reasoning>/gi, '')
-              .trim();
-          };
-
-          let activeText = cleanReasoning(sentenceText || fullStreamText);
-          const activeFocus = focusPhrase ? cleanReasoning(focusPhrase) : undefined;
+          // Dynamically sanitize text in real-time to strip comments, quotes, and labels
+          const sanitized = sanitizeSentence(fullStreamText);
 
           // Client-side sentence boundary check
-          if (sentenceIndex !== -1 && activeText.length > 5) {
-            const boundaryMatch = activeText.match(/([.!?])\s+/);
+          if (sanitized.cleanText.length > 5) {
+            const boundaryMatch = sanitized.cleanText.match(/([.!?])\s+/);
             if (boundaryMatch && boundaryMatch.index !== undefined) {
               const truncateIndex = boundaryMatch.index + 1;
-              activeText = activeText.slice(0, truncateIndex).trim();
-              sentenceText = activeText;
+              const finalSentence = sanitized.cleanText.slice(0, truncateIndex).trim();
 
-              onChunk(activeText, activeFocus || undefined);
-
+              onChunk(finalSentence, focusPhrase);
               await reader.cancel();
-              return { text: activeText, focusPhrase: activeFocus };
+
+              // Run duplicate check on finalized sentence
+              const finalSanitized = sanitizeSentence(finalSentence, lastSentenceText);
+              if (finalSanitized.isDuplicate) {
+                throw new Error(
+                  language === 'fr'
+                    ? "La phrase générée est trop similaire à la précédente (détection de doublon)."
+                    : "The generated sentence is a duplicate or too similar to the previous one."
+                );
+              }
+
+              return { text: finalSentence, focusPhrase };
             }
           }
 
-          onChunk(activeText, activeFocus || undefined);
-        } catch (e) {
-          // Ignore parse errors on partial lines
+          onChunk(sanitized.cleanText, focusPhrase);
+        } catch (e: any) {
+          if (e.message.includes("doublon") || e.message.includes("duplicate")) {
+            throw e;
+          }
+          // Ignore other partial parsing errors
         }
       }
     }
@@ -524,5 +620,15 @@ Do not write more than one sentence. Do not include markdown formatting like bol
     reader.releaseLock();
   }
 
-  return { text: sentenceText || fullStreamText, focusPhrase: focusPhrase || undefined };
+  // End of stream cleanup and duplicate verification
+  const finalSanitized = sanitizeSentence(fullStreamText, lastSentenceText);
+  if (finalSanitized.isDuplicate) {
+    throw new Error(
+      language === 'fr'
+        ? "La phrase générée est trop similaire à la précédente (détection de doublon)."
+        : "The generated sentence is a duplicate or too similar to the previous one."
+    );
+  }
+
+  return { text: finalSanitized.cleanText, focusPhrase };
 }
