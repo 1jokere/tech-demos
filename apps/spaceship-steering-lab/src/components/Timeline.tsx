@@ -1,5 +1,6 @@
 import React from 'react';
 import { type Branch, type Sentence } from '../state/steeringMachine';
+import { type Language, LOCALES } from '../services/locale';
 import { GitFork, History, ChevronRight } from 'lucide-react';
 
 interface TimelineProps {
@@ -8,6 +9,7 @@ interface TimelineProps {
   branches: Branch[];
   onScrub: (index: number) => void;
   onRestoreBranch: (branchId: string) => void;
+  language: Language;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -15,36 +17,38 @@ export const Timeline: React.FC<TimelineProps> = ({
   activeSentenceIndex,
   branches,
   onScrub,
-  onRestoreBranch
+  onRestoreBranch,
+  language
 }) => {
   const totalSteps = sentences.length;
+  const t = LOCALES[language];
 
   return (
     <div className="timeline-panel panel">
       <div className="panel-head">
         <div className="title-row">
           <History className="panel-icon text-cyan" size={18} />
-          <h2>Timeline & Branching</h2>
+          <h2>{t.timelinePanel}</h2>
         </div>
-        <p>Scrub back to prune the timeline and forge an alternative future, or switch branches.</p>
+        <p>{t.timelinePanelSub}</p>
       </div>
 
       {totalSteps === 0 ? (
         <div className="timeline-empty">
-          <p>Start generating the story to populate the timeline.</p>
+          <p>{t.timelineEmpty}</p>
         </div>
       ) : (
         <div className="timeline-content">
           {/* Custom Slider / Scrubber */}
           <div className="scrubber-container">
             <div className="scrubber-header">
-              <span>Active Timeline: <strong>{activeSentenceIndex + 1}</strong> / {totalSteps} sentences</span>
+              <span>{t.activeTimeline}: <strong>{activeSentenceIndex + 1}</strong> / {totalSteps} sentences</span>
               <button 
                 className="btn-text" 
                 onClick={() => onScrub(-1)}
                 disabled={activeSentenceIndex === -1}
               >
-                Reset to Premise
+                {t.resetPremise}
               </button>
             </div>
 
@@ -58,7 +62,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                 className="timeline-slider"
               />
               <div className="slider-ticks">
-                <span className={`tick-label ${activeSentenceIndex === -1 ? 'active' : ''}`}>Premise</span>
+                <span className={`tick-label ${activeSentenceIndex === -1 ? 'active' : ''}`}>{t.ticksPremise}</span>
                 {sentences.map((_, idx) => (
                   <span 
                     key={idx} 
@@ -74,7 +78,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
           {/* Segmented Interactive Timeline Track */}
           <div className="segments-track">
-            <span className="track-label-side">Start</span>
+            <span className="track-label-side">{language === 'fr' ? 'Début' : 'Start'}</span>
             <div className="segments-container">
               <div 
                 className={`segment premise-segment ${activeSentenceIndex === -1 ? 'active' : ''}`}
@@ -86,7 +90,6 @@ export const Timeline: React.FC<TimelineProps> = ({
                 const isPast = idx < activeSentenceIndex;
                 const isDiscarded = idx > activeSentenceIndex;
                 
-                // Color code the segment based on Tone (Light = cyan/fuchsia, Dark = violet)
                 const toneGlow = sentence.knobs.tone >= 0.5 ? 'glow-light' : 'glow-dark';
 
                 return (
@@ -110,25 +113,29 @@ export const Timeline: React.FC<TimelineProps> = ({
       <div className="branches-section">
         <div className="branches-header">
           <GitFork size={14} className="text-fuchsia" />
-          <h3>Parallel Futures ({branches.length})</h3>
+          <h3>{t.parallelFutures} ({branches.length})</h3>
         </div>
         
         {branches.length === 0 ? (
-          <p className="branches-empty-text">No alternative branches yet. Scrub back and regenerate to spawn options.</p>
+          <p className="branches-empty-text">{t.parallelFuturesEmpty}</p>
         ) : (
           <div className="branches-list">
             {branches.map((branch) => {
               const date = new Date(branch.timestamp);
               const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
               
+              const restoredName = language === 'fr' 
+                ? branch.name.replace("Alternative Future", "Futur Alternatif").replace("Before restoring branch", "Avant restauration")
+                : branch.name;
+
               return (
                 <div key={branch.id} className="branch-card" onClick={() => onRestoreBranch(branch.id)}>
                   <div className="branch-info">
-                    <span className="branch-name">{branch.name}</span>
-                    <span className="branch-meta">Saved at {timeString}</span>
+                    <span className="branch-name">{restoredName}</span>
+                    <span className="branch-meta">{language === 'fr' ? 'Sauvegardé à' : 'Saved at'} {timeString}</span>
                   </div>
-                  <button className="btn-restore-branch" title="Restore this future">
-                    <span>Jump</span>
+                  <button className="btn-restore-branch" title={language === 'fr' ? 'Restaurer ce futur' : 'Restore this future'}>
+                    <span>{t.jumpBtn}</span>
                     <ChevronRight size={14} />
                   </button>
                 </div>
